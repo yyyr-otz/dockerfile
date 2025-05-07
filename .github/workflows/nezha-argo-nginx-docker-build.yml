@@ -9,7 +9,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: nezha-argo-nginx
+  IMAGE_NAME: ${{ github.repository_owner }}/nezha-argo-nginx
   TAG: latest  # 固定使用latest标签
 
 jobs:
