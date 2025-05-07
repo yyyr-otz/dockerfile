@@ -14,7 +14,7 @@ RUN apk add --no-cache \
 COPY --from=cloudflare/cloudflared:latest /usr/local/bin/cloudflared /usr/local/bin/cloudflared
 COPY --from=app /etc/ssl/certs /etc/ssl/certs
 
-COPY main.conf /etc/nginx/conf.d/main.conf
+COPY main.conf /etc/nginx/nginx.conf
 
 ENV TZ=Asia/Shanghai
 
