@@ -1,16 +1,16 @@
 name: nezha-argo-nginx-docker-build
-
 on:
   workflow_dispatch:
   push:
     branches: [ main ]
     paths:
       - 'nezha-argo-nginx/**'
-
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/nezha-argo-nginx
-  TAG: latest  # 固定使用latest标签
+  ALT_IMAGE_NAME: ${{ github.repository_owner }}/nezha-argo
+  TAG: latest
+  ALT_TAG: nginx
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -26,11 +26,15 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push Docker image
+      - name: Build and push Docker images
         run: |
           cd nezha-argo-nginx
+          # 构建第一个镜像
           docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG }} .
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG }}
+          # 构建第二个镜像（实际上是同一个镜像，只是打了不同的标签）
+          docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG }} ${{ env.REGISTRY }}/${{ env.ALT_IMAGE_NAME }}:${{ env.ALT_TAG }}
+          docker push ${{ env.REGISTRY }}/${{ env.ALT_IMAGE_NAME }}:${{ env.ALT_TAG }}
       - name: Clean
         uses: Mattraks/delete-workflow-runs@v2
         with:
