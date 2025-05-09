@@ -31,3 +31,10 @@ jobs:
           cd nezha-argo-nginx
           docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG }} .
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG }}
+      - name: Clean
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ secrets.MYPAT }}
+          repository: ${{ github.repository }}
+          retain_days: 0
+          keep_minimum_runs: 1
