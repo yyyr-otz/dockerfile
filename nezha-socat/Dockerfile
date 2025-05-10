@@ -1,15 +1,6 @@
 FROM ghcr.io/nezhahq/nezha AS app
 FROM alpine:latest
-RUN apk update && apk upgrade && \
-    apk --no-cache add \
-    aws-cli \
-    tar \
-    gzip \
-    tzdata \
-    openssl \
-    sqlite \
-    coreutils \
-    socat
+RUN apk add --no-cache aws-cli tar gzip tzdata openssl sqlite coreutils socat supervisor
 COPY --from=app /etc/ssl/certs /etc/ssl/certs
 WORKDIR /dashboard
 COPY --from=app /dashboard/app /dashboard/app
