@@ -1,14 +1,14 @@
-name: nezha-argo-socat-docker-build
+name: nezha-socat-docker-build
 on:
   workflow_dispatch:
-#  push:
-#    branches: [ main ]
-#    paths:
-#      - 'nezha-argo-socat/**'
+  push:
+    branches: [ main ]
+    paths:
+      - 'nezha-socat/**'
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/nezha-argo-socat
-  ALT_IMAGE_NAME: ${{ github.repository_owner }}/nezha-argo
+  IMAGE_NAME: ${{ github.repository_owner }}/nezha-socat
+  ALT_IMAGE_NAME: ${{ github.repository_owner }}/nezha
   TAG: latest
   ALT_TAG: socat
 jobs:
@@ -29,7 +29,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push Docker images
         run: |
-          cd nezha-argo-socat
+          cd nezha-socat
           # 构建第一个镜像
           docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG }} .
           docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG }}
