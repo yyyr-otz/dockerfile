@@ -1,10 +1,10 @@
 name: nezha-argo-nginx-docker-build
 on:
   workflow_dispatch:
-  push:
-    branches: [ main ]
-    paths:
-      - 'nezha-argo-nginx/**'
+#  push:
+#    branches: [ main ]
+#    paths:
+#      - 'nezha-argo-nginx/**'
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/nezha-argo-nginx
