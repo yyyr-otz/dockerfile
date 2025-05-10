@@ -1,24 +1,43 @@
 #!/bin/sh
-# 默认值（如果未设置环境变量）
 HTTP_PORT=${HTTP_PORT:-8008}
 GRPC_PORT=${GRPC_PORT:-8080}
-TARGET_PORT=8008  # 固定转发目标
-# 启动 socat
-echo "Starting socat..."
-# 1. 强制转发 GRPC_PORT → 8008
-echo "Forwarding GRPC_PORT ($GRPC_PORT) to $TARGET_PORT"
-socat TCP-LISTEN:$GRPC_PORT,fork,reuseaddr TCP:localhost:$TARGET_PORT &
-# 2. 如果 HTTP_PORT 不是 8008，则额外转发 HTTP_PORT → 8008
+TARGET_PORT=8008
+
+mkdir -p /etc/supervisor/conf.d
+
+cat > /etc/supervisor/conf.d/damon.conf << EOF
+[supervisord]
+nodaemon=true
+logfile=/dev/null
+pidfile=/run/supervisord.pid
+
+[program:nezha]
+command=/dashboard/app
+autorestart=true
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+
+[program:socat-grpc]
+command=socat TCP-LISTEN:$GRPC_PORT,fork,reuseaddr TCP:localhost:$TARGET_PORT
+autorestart=true
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+EOF
+
 if [ "$HTTP_PORT" != "$TARGET_PORT" ]; then
-    echo "Forwarding HTTP_PORT ($HTTP_PORT) to $TARGET_PORT"
-    socat TCP-LISTEN:$HTTP_PORT,fork,reuseaddr TCP:localhost:$TARGET_PORT &
+  cat >> /etc/supervisor/conf.d/damon.conf << EOF
+[program:socat-http]
+command=socat TCP-LISTEN:$HTTP_PORT,fork,reuseaddr TCP:localhost:$TARGET_PORT
+autorestart=true
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+EOF
 fi
-sleep 3
 
-# 启动 dashboard app
-echo "Starting dashboard app..."
-/dashboard/app &
-sleep 3
-
-# 等待所有后台进程
-wait
+exec supervisord -c /etc/supervisor/supervisord.conf
