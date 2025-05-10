@@ -8,9 +8,9 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/nezha-argo-nginx
-  ALT_IMAGE_NAME: ${{ github.repository_owner }}/nezha-argo
+  ALT_IMAGE_NAME: ${{ github.repository_owner }}/nezha
   TAG: latest
-  ALT_TAG: nginx
+  ALT_TAG: argo-nginx
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
