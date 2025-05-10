@@ -1,5 +1,7 @@
-FROM ghcr.io/nezhahq/nezha AS builder
-RUN apk add --no-cache \
+FROM ghcr.io/nezhahq/nezha AS app
+FROM alpine:latest
+RUN apk update && apk upgrade && \
+    apk --no-cache add \
     aws-cli \
     tar \
     gzip \
@@ -10,7 +12,7 @@ RUN apk add --no-cache \
     socat
 ENV TZ=Asia/Shanghai
 WORKDIR /dashboard
-COPY --from=builder /dashboard/app /dashboard/app
+COPY --from=app /dashboard/app /dashboard/app
 RUN mkdir -p /dashboard/data && chmod -R 777 /dashboard
 ENV HTTP_PORT=8008 GRPC_PORT=8080
 EXPOSE $HTTP_PORT $GRPC_PORT
