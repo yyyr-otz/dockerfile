@@ -1,10 +1,10 @@
 name: nezha-argo-socat-docker-build
 on:
   workflow_dispatch:
-  push:
-    branches: [ main ]
-    paths:
-      - 'nezha-argo-socat/**'
+#  push:
+#    branches: [ main ]
+#    paths:
+#      - 'nezha-argo-socat/**'
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/nezha-argo-socat
