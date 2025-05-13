@@ -32,35 +32,56 @@ jobs:
       - name: Determine build targets
         id: determine-targets
         run: |
+          # 确保jq可用
+          sudo apt-get -qq install jq > /dev/null 2>&1 || true
+          
+          # 检查触发方式
           if [ "${{ github.event_name }}" = "schedule" ]; then
             echo "定时任务触发，构建所有目录"
-            TARGET_DIRS=$(find . -maxdepth 1 -type d ! -name '.' ! -name '.github' -printf '%f\n')
+            # 更精确地查找目标目录（排除.git等隐藏目录）
+            TARGET_DIRS=$(find . -maxdepth 1 -type d -name '[!.]*' ! -name '.github' -printf '%f\n' | sort)
           else
+            # 手动触发
             if [ "${{ inputs.target_dir }}" = "all" ]; then
-              TARGET_DIRS=$(find . -maxdepth 1 -type d ! -name '.' ! -name '.github' -printf '%f\n')
+              echo "手动触发，构建所有目录"
+              TARGET_DIRS=$(find . -maxdepth 1 -type d -name '[!.]*' ! -name '.github' -printf '%f\n' | sort)
             else
+              echo "手动触发，构建指定目录: ${{ inputs.target_dir }}"
               TARGET_DIRS="${{ inputs.target_dir }}"
             fi
           fi
           
-          TARGET_DIRS_JSON=$(jq -n --arg dirs "$TARGET_DIRS" '$dirs | split("\n") | map(select(. != ""))')
+          # 调试输出
+          echo "找到的目录:"
+          echo "$TARGET_DIRS"
+          
+          # 安全处理输出为JSON数组
+          TARGET_DIRS_JSON=$(echo "$TARGET_DIRS" | jq -R -s -c 'split("\n") | map(select(. != ""))')
           echo "TARGET_DIRS=${TARGET_DIRS_JSON}" >> $GITHUB_OUTPUT
+          echo "已设置输出: TARGET_DIRS=${TARGET_DIRS_JSON}"
           
       - name: Build and push Docker images
         run: |
-          for DIR in $(echo ${{ steps.determine-targets.outputs.TARGET_DIRS }} | jq -r '.[]'); do
-            echo "Processing directory: $DIR"
+          echo "准备构建的目录列表: ${{ steps.determine-targets.outputs.TARGET_DIRS }}"
+          for DIR in $(echo '${{ steps.determine-targets.outputs.TARGET_DIRS }}' | jq -r '.[]'); do
+            echo "== 正在处理目录: $DIR =="
             
+            # 分割目录名
             IFS='-' read -ra NAME_PARTS <<< "$DIR"
             IMAGE_NAME="${NAME_PARTS[0]}"
             TAG_NAME=$(IFS='-'; echo "${NAME_PARTS[*]:1}")
             
-            echo "Building image: $IMAGE_NAME:$TAG_NAME"
+            echo "镜像名称: $IMAGE_NAME"
+            echo "标签名称: $TAG_NAME"
             
+            # 构建并推送
             cd "$DIR"
             docker build -t ${{ env.REGISTRY }}/$IMAGE_NAME:$TAG_NAME .
             docker push ${{ env.REGISTRY }}/$IMAGE_NAME:$TAG_NAME
             cd ..
+            
+            echo "== 完成处理: $DIR =="
+            echo ""
           done
           
       - name: Clean
