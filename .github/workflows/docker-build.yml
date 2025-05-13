@@ -1,16 +1,15 @@
 name: docker-build
-on: 
+on:
   workflow_dispatch:
     inputs:
       target_dir:
-        description: '目标镜像目录 ("all"构建所有目录)'
+        description: '目标镜像目录 ("all"构建所有目录，或输入目录前缀模糊匹配)'
         required: true
         default: 'all'
   schedule:
     - cron: '0 2 * * 4'
 env:
   REGISTRY: ghcr.io
-
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -38,7 +37,6 @@ jobs:
           # 检查触发方式
           if [ "${{ github.event_name }}" = "schedule" ]; then
             echo "定时任务触发，构建所有目录"
-            # 更精确地查找目标目录（排除.git等隐藏目录）
             TARGET_DIRS=$(find . -maxdepth 1 -type d -name '[!.]*' ! -name '.github' -printf '%f\n' | sort)
           else
             # 手动触发
@@ -46,8 +44,15 @@ jobs:
               echo "手动触发，构建所有目录"
               TARGET_DIRS=$(find . -maxdepth 1 -type d -name '[!.]*' ! -name '.github' -printf '%f\n' | sort)
             else
-              echo "手动触发，构建指定目录: ${{ inputs.target_dir }}"
-              TARGET_DIRS="${{ inputs.target_dir }}"
+              echo "手动触发，构建匹配前缀的目录: ${{ inputs.target_dir }}"
+              # 使用通配符匹配以输入值开头的目录
+              TARGET_DIRS=$(find . -maxdepth 1 -type d -name "${{ inputs.target_dir }}*" ! -name '.github' -printf '%f\n' | sort)
+              
+              # 如果没有找到匹配目录则报错
+              if [ -z "$TARGET_DIRS" ]; then
+                echo "错误: 没有找到以 '${{ inputs.target_dir }}' 开头的目录"
+                exit 1
+              fi
             fi
           fi
           
@@ -68,7 +73,7 @@ jobs:
             
             # 分割目录名
             IFS='-' read -ra NAME_PARTS <<< "$DIR"
-            IMAGE_NAME=${{ github.repository_owner }}/"${NAME_PARTS[0]}"
+            IMAGE_NAME="${{ github.repository_owner }}/${NAME_PARTS[0]}"
             TAG_NAME=$(IFS='-'; echo "${NAME_PARTS[*]:1}")
             
             echo "镜像名称: $IMAGE_NAME"
