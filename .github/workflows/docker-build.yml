@@ -35,10 +35,13 @@ jobs:
             TARGET_DIRS=$(find . -maxdepth 1 -type d -name "${{ github.event.inputs.target_dir }}*" ! -name '.github' -printf '%f\n' | sort)
             [ -z "$TARGET_DIRS" ] && { echo "错误: 没有找到匹配目录"; exit 1; }
           fi
-
           # 生成矩阵JSON
           MATRIX_JSON=$(echo "$TARGET_DIRS" | jq -R -s 'split("\n") | map(select(. != "")) | {"include": map({"dir": .})}')
-          echo "matrix=${MATRIX_JSON}" >> $GITHUB_OUTPUT
+          # 写入GitHub输出（使用heredoc格式）
+          echo "matrix<<EOF" >> $GITHUB_OUTPUT
+          echo "$MATRIX_JSON" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          # 调试输出
           echo "生成的矩阵:"
           echo "$MATRIX_JSON"
 
