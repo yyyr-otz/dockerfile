@@ -92,7 +92,25 @@ jobs:
             echo "== 完成处理: $DIR =="
             echo ""
           done
-          
+
+      - name: Clean untagged (sha256) images
+        run: |
+          for DIR in $(echo '${{ steps.determine-targets.outputs.TARGET_DIRS }}' | jq -r '.[]'); do
+            IFS='-' read -ra NAME_PARTS <<< "$DIR"
+            IMAGE_NAME="${{ github.repository_owner }}/${NAME_PARTS[0]}"
+      
+            # 获取所有镜像版本（包括无标签的）
+            ALL_VERSIONS=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/users/${{ github.repository_owner }}/packages/container/$IMAGE_NAME/versions")
+      
+            # 删除所有无标签的版本（即历史 sha256 镜像）
+            echo "$ALL_VERSIONS" | jq -r '.[] | select(.metadata.container.tags | length == 0) | .id' \
+              | xargs -I {} curl -X DELETE \
+                -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                "https://api.github.com/users/${{ github.repository_owner }}/packages/container/$IMAGE_NAME/versions/{}"
+          done
+
       - name: Clean
         uses: Mattraks/delete-workflow-runs@v2
         with:
