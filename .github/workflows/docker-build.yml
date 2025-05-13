@@ -18,10 +18,7 @@ jobs:
     outputs:
       target_matrix: ${{ steps.set-matrix.outputs.target_matrix }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Find target directories
+      - name: Set up matrix
         id: set-matrix
         run: |
           if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.target_dir }}" = "all" ]; then
@@ -30,8 +27,9 @@ jobs:
             TARGET_DIRS=$(find . -maxdepth 1 -type d -name "${{ inputs.target_dir }}*" ! -name '.github' -printf '%f\n' | sort)
             [ -z "$TARGET_DIRS" ] && { echo "错误: 没有找到匹配目录"; exit 1; }
           fi
+
           echo "找到的目录:" && echo "$TARGET_DIRS"
-          MATRIX_JSON=$(jq -n --argjson dirs "$(jq -R -s -c 'split("\n") | map(select(. != ""))' <<< "$TARGET_DIRS")" '{"include": $dirs | map({"dir": .})}')
+          MATRIX_JSON=$(echo "$TARGET_DIRS" | jq -R -s 'split("\n") | map(select(. != "")) | {"include": map({"dir": .})}')
           echo "target_matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
 
   build-and-push:
