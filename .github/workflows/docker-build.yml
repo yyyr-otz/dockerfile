@@ -13,39 +13,46 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  determine-targets:
+  prepare:
     runs-on: ubuntu-latest
     outputs:
-      target_matrix: ${{ steps.set-matrix.outputs.target_matrix }}
-    steps:
-      - name: Set up matrix
-        id: set-matrix
-        run: |
-          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.target_dir }}" = "all" ]; then
-            TARGET_DIRS=$(find . -maxdepth 1 -type d -name '[!.]*' ! -name '.github' -printf '%f\n' | sort)
-          else
-            TARGET_DIRS=$(find . -maxdepth 1 -type d -name "${{ inputs.target_dir }}*" ! -name '.github' -printf '%f\n' | sort)
-            [ -z "$TARGET_DIRS" ] && { echo "错误: 没有找到匹配目录"; exit 1; }
-          fi
-
-          echo "找到的目录:" && echo "$TARGET_DIRS"
-          MATRIX_JSON=$(echo "$TARGET_DIRS" | jq -R -s 'split("\n") | map(select(. != "")) | {"include": map({"dir": .})}')
-          echo "target_matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
-
-  build-and-push:
-    needs: determine-targets
-    runs-on: ubuntu-latest
-    strategy:
-      matrix: ${{ fromJson(needs.determine-targets.outputs.target_matrix) }}
-      fail-fast: false  # 允许单个镜像构建失败不影响其他
-    permissions:
-      contents: read
-      packages: write
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Log in to GHCR
+      - name: Find target directories
+        id: set-matrix
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "定时任务触发，构建所有目录"
+            TARGET_DIRS=$(find . -maxdepth 1 -type d -name '[!.]*' ! -name '.github' -printf '%f\n' | sort)
+          elif [ "${{ github.event.inputs.target_dir }}" = "all" ]; then
+            echo "手动触发，构建所有目录"
+            TARGET_DIRS=$(find . -maxdepth 1 -type d -name '[!.]*' ! -name '.github' -printf '%f\n' | sort)
+          else
+            echo "手动触发，构建匹配前缀的目录: ${{ github.event.inputs.target_dir }}"
+            TARGET_DIRS=$(find . -maxdepth 1 -type d -name "${{ github.event.inputs.target_dir }}*" ! -name '.github' -printf '%f\n' | sort)
+            [ -z "$TARGET_DIRS" ] && { echo "错误: 没有找到匹配目录"; exit 1; }
+          fi
+
+          # 生成矩阵JSON
+          MATRIX_JSON=$(echo "$TARGET_DIRS" | jq -R -s 'split("\n") | map(select(. != "")) | {"include": map({"dir": .})}')
+          echo "matrix=${MATRIX_JSON}" >> $GITHUB_OUTPUT
+          echo "生成的矩阵:"
+          echo "$MATRIX_JSON"
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+      fail-fast: false  # 允许单个构建失败不影响其他
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -54,42 +61,34 @@ jobs:
 
       - name: Build and push
         run: |
-          DIR="${{ matrix.dir }}"
-          echo "== 并行构建: $DIR =="
+          echo "== 并行构建目录: ${{ matrix.dir }} =="
           
-          IFS='-' read -ra NAME_PARTS <<< "$DIR"
-          IMAGE_NAME=$(echo "${NAME_PARTS[0]}" | tr '[:upper:]' '[:lower:]')
-          TAG_NAME=$(IFS='-'; echo "${NAME_PARTS[*]:1}")
+          # 解析目录名格式：镜像名-标签
+          IFS='-' read -ra PARTS <<< "${{ matrix.dir }}"
+          IMAGE_NAME=${PARTS[0]}
+          TAG_NAME=$(IFS='-'; echo "${PARTS[*]:1}")
 
-          cd "$DIR"
-          docker build --no-cache -t ${{ env.REGISTRY }}/${{ github.repository_owner }}/$IMAGE_NAME:$TAG_NAME .
+          # 构建并推送
+          docker build -t ${{ env.REGISTRY }}/${{ github.repository_owner }}/$IMAGE_NAME:$TAG_NAME ./${{ matrix.dir }}
           docker push ${{ env.REGISTRY }}/${{ github.repository_owner }}/$IMAGE_NAME:$TAG_NAME
-          cd ..
 
-      - name: Clean untagged images
-        run: |
-          DIR="${{ matrix.dir }}"
-          IFS='-' read -ra NAME_PARTS <<< "$DIR"
-          IMAGE_NAME=$(echo "${NAME_PARTS[0]}" | tr '[:upper:]' '[:lower:]')
-
-          echo "清理无标签镜像: $IMAGE_NAME"
-          ALL_VERSIONS=$(curl -sf -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          # 清理无标签镜像（可选）
+          curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/users/${{ github.repository_owner }}/packages/container/$IMAGE_NAME/versions" || echo '[]')
-
-          echo "$ALL_VERSIONS" | jq -r '.[] | select(.metadata?.container?.tags | length == 0)? | .id' \
-            | xargs -I {} curl -sf -X DELETE \
-              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-              "https://api.github.com/users/${{ github.repository_owner }}/packages/container/$IMAGE_NAME/versions/{}"
+            "https://api.github.com/users/${{ github.repository_owner }}/packages/container/$IMAGE_NAME/versions" \
+            | jq -r '.[] | select(.metadata.container.tags | length == 0) | .id' \
+            | xargs -I {} curl -X DELETE \
+                -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                "https://api.github.com/users/${{ github.repository_owner }}/packages/container/$IMAGE_NAME/versions/{}"
 
   cleanup:
-    needs: build-and-push
+    needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Delete old workflow runs
+      - name: Clean old workflows
         uses: Mattraks/delete-workflow-runs@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
           retain_days: 0
-          keep_minimum_runs: 1
+          keep_minimum_runs: 3
