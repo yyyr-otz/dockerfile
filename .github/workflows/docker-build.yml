@@ -68,7 +68,7 @@ jobs:
             
             # 分割目录名
             IFS='-' read -ra NAME_PARTS <<< "$DIR"
-            IMAGE_NAME="${NAME_PARTS[0]}"
+            IMAGE_NAME=${{ github.repository_owner }}/"${NAME_PARTS[0]}"
             TAG_NAME=$(IFS='-'; echo "${NAME_PARTS[*]:1}")
             
             echo "镜像名称: $IMAGE_NAME"
