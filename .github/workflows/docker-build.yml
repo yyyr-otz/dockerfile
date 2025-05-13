@@ -48,6 +48,10 @@ jobs:
   build:
     needs: prepare
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+      packages: write
     strategy:
       matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
       fail-fast: false  # 允许单个构建失败不影响其他
