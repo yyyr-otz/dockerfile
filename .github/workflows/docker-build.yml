@@ -37,13 +37,13 @@ jobs:
           fi
           # 生成矩阵JSON
           MATRIX_JSON=$(echo "$TARGET_DIRS" | jq -R -s 'split("\n") | map(select(. != "")) | {"include": map({"dir": .})}')
+          # 调试输出
+          echo "生成的矩阵:"
+          echo "$MATRIX_JSON"
           # 写入GitHub输出（使用heredoc格式）
           echo "matrix<<EOF" >> $GITHUB_OUTPUT
           echo "$MATRIX_JSON" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-          # 调试输出
-          echo "生成的矩阵:"
-          echo "$MATRIX_JSON"
 
   build:
     needs: prepare
