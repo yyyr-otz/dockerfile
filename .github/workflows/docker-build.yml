@@ -32,10 +32,9 @@ jobs:
       - name: Determine build targets
         id: determine-targets
         run: |
-          # 如果是定时触发，等同于手动输入"all"
           if [ "${{ github.event_name }}" = "schedule" ]; then
-            TARGET_DIRS=$(find . -maxdepth 1 -type d ! -name '.' ! -name '.github' -printf '%f\n')
             echo "定时任务触发，构建所有目录"
+            TARGET_DIRS=$(find . -maxdepth 1 -type d ! -name '.' ! -name '.github' -printf '%f\n')
           else
             if [ "${{ inputs.target_dir }}" = "all" ]; then
               TARGET_DIRS=$(find . -maxdepth 1 -type d ! -name '.' ! -name '.github' -printf '%f\n')
@@ -43,14 +42,15 @@ jobs:
               TARGET_DIRS="${{ inputs.target_dir }}"
             fi
           fi
-          echo "TARGET_DIRS=${TARGET_DIRS}" >> $GITHUB_OUTPUT
+          
+          TARGET_DIRS_JSON=$(jq -n --arg dirs "$TARGET_DIRS" '$dirs | split("\n") | map(select(. != ""))')
+          echo "TARGET_DIRS=${TARGET_DIRS_JSON}" >> $GITHUB_OUTPUT
           
       - name: Build and push Docker images
         run: |
-          for DIR in ${{ steps.determine-targets.outputs.TARGET_DIRS }}; do
+          for DIR in $(echo ${{ steps.determine-targets.outputs.TARGET_DIRS }} | jq -r '.[]'); do
             echo "Processing directory: $DIR"
             
-            # Split directory name by first hyphen
             IFS='-' read -ra NAME_PARTS <<< "$DIR"
             IMAGE_NAME="${NAME_PARTS[0]}"
             TAG_NAME=$(IFS='-'; echo "${NAME_PARTS[*]:1}")
