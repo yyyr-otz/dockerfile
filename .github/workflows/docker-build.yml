@@ -15,8 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
       actions: write
+      packages: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -70,21 +70,25 @@ jobs:
           echo "准备构建的目录列表: ${{ steps.determine-targets.outputs.TARGET_DIRS }}"
           for DIR in $(echo '${{ steps.determine-targets.outputs.TARGET_DIRS }}' | jq -r '.[]'); do
             echo "== 正在处理目录: $DIR =="
-            
             # 分割目录名
             IFS='-' read -ra NAME_PARTS <<< "$DIR"
             IMAGE_NAME="${{ github.repository_owner }}/${NAME_PARTS[0]}"
             TAG_NAME=$(IFS='-'; echo "${NAME_PARTS[*]:1}")
-            
             echo "镜像名称: $IMAGE_NAME"
             echo "标签名称: $TAG_NAME"
             
             # 构建并推送
             cd "$DIR"
-            docker build -t ${{ env.REGISTRY }}/$IMAGE_NAME:$TAG_NAME .
+            # 先删除本地可能存在的旧镜像
+            docker rmi -f ${{ env.REGISTRY }}/$IMAGE_NAME:$TAG_NAME || true
+            # 构建新镜像
+            docker build --no-cache -t ${{ env.REGISTRY }}/$IMAGE_NAME:$TAG_NAME .
+            # 推送前先删除远程镜像(需要Registry支持删除API)
+            curl -X DELETE -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              "https://ghcr.io/v2/$IMAGE_NAME/manifests/$TAG_NAME" || true
+            # 推送新镜像
             docker push ${{ env.REGISTRY }}/$IMAGE_NAME:$TAG_NAME
             cd ..
-            
             echo "== 完成处理: $DIR =="
             echo ""
           done
