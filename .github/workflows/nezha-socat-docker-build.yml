@@ -7,9 +7,9 @@ on:
 #      - 'nezha-socat/**'
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/nezha-socat
+  #IMAGE_NAME: ${{ github.repository_owner }}/nezha-socat
   ALT_IMAGE_NAME: ${{ github.repository_owner }}/nezha
-  TAG: latest
+  #TAG: latest
   ALT_TAG: socat
 jobs:
   build-and-push:
@@ -30,12 +30,14 @@ jobs:
       - name: Build and push Docker images
         run: |
           cd nezha-socat
-          # 构建第一个镜像
-          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG }} .
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG }}
-          # 构建第二个镜像（实际上是同一个镜像，只是打了不同的标签）
-          docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG }} ${{ env.REGISTRY }}/${{ env.ALT_IMAGE_NAME }}:${{ env.ALT_TAG }}
+          docker build -t ${{ env.REGISTRY }}/${{ env.ALT_IMAGE_NAME }}:${{ env.ALT_TAG }} .
           docker push ${{ env.REGISTRY }}/${{ env.ALT_IMAGE_NAME }}:${{ env.ALT_TAG }}
+          # 构建第一个镜像
+          #docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG }} .
+          #docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG }}
+          # 构建第二个镜像（实际上是同一个镜像，只是打了不同的标签）
+          #docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG }} ${{ env.REGISTRY }}/${{ env.ALT_IMAGE_NAME }}:${{ env.ALT_TAG }}
+          #docker push ${{ env.REGISTRY }}/${{ env.ALT_IMAGE_NAME }}:${{ env.ALT_TAG }}
       - name: Clean
         uses: Mattraks/delete-workflow-runs@v2
         with:
