@@ -1,8 +1,8 @@
 #!/bin/sh
-: ${STDLOG:=true}
-: ${HTTP_PORT:=8008}
-: ${GRPC_PORT:=8080}
-: ${TARGET_PORT:=8008}
+export STDLOG={STDLOG:=true}
+export HTTP_PORT={HTTP_PORT:=8008}
+export GRPC_PORT={GRPC_PORT:=8080}
+export TARGET_PORT={TARGET_PORT:=8008}
 
 #[ "$STDLOG" = "true" ] && LOG_OUTPUT="/dev/stdout" LOG_ERRPUT="/dev/stderr" || LOG_OUTPUT="/dev/null" LOG_ERRPUT="/dev/null"
 
