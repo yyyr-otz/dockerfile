@@ -31,7 +31,7 @@ logfile=/dev/null
 pidfile=/run/supervisord.pid
 
 [program:nezha]
-command=/dashboard/app
+command=/dashboard/app -c /dashboard/data/config.yaml -db /dashboard/data//sqlite.db
 autorestart=true
 stdout_logfile=$LOG_OUTPUT
 stdout_logfile_maxbytes=0
