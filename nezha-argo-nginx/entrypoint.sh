@@ -1,8 +1,8 @@
 #!/bin/sh
 
 # 设置默认值
-ARGO_DOMAIN=${ARGO_DOMAIN:-""}
-CF_TOKEN=${CF_TOKEN:-""}
+export ARGO_DOMAIN=${ARGO_DOMAIN:-""}
+export CF_TOKEN=${CF_TOKEN:-""}
 
 # 启动 dashboard app
 echo "Starting dashboard app..."
